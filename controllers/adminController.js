@@ -54,6 +54,60 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// @desc    Багшийн суралцагчдыг харах (Test Admin өөрийнхөө)
+// @route   GET /api/admin/my-students
+// @access  Private/Admin (Test Admin)
+// @desc    Багшийн суралцагчдыг харах
+// @route   GET /api/admin/my-students
+// @access  Private/Admin (Test Admin болон Admin)
+exports.getMyStudents = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+
+    const [courses] = await db.query(
+      'SELECT id, title FROM courses WHERE instructor_id = ?',
+      [instructorId]
+    );
+
+    if (courses.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        totalCourses: 0,
+        totalStudents: 0
+      });
+    }
+
+    const courseIds = courses.map(c => c.id);
+
+    const [students] = await db.query(`
+      SELECT DISTINCT
+        u.id, u.name, u.email,
+        e.enrolled_at,
+        c.title as course_title,
+        c.id as course_id
+      FROM enrollments e
+      JOIN users u ON e.user_id = u.id
+      JOIN courses c ON e.course_id = c.id
+      WHERE c.id IN (?)
+      ORDER BY e.enrolled_at DESC
+    `, [courseIds]);
+
+    res.status(200).json({
+      success: true,
+      data: students,
+      totalCourses: courses.length,
+      totalStudents: new Set(students.map(s => s.id)).size
+    });
+  } catch (error) {
+    console.error('GetMyStudents Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
+
 // @desc    Хэрэглэгчийн дэлгэрэнгүй мэдээлэл
 // @route   GET /api/admin/users/:id
 // @access  Private/Admin
@@ -697,5 +751,5 @@ exports.getAdminLogs = async (req, res) => {
       message: 'Серверийн алдаа гарлаа'
     });
   }
+  
 };
-//sda//

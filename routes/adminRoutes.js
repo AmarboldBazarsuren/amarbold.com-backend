@@ -12,7 +12,8 @@ const {
   addCourseSection,
   addLesson,
   getAdminStats,
-  getAdminLogs
+  getAdminLogs,
+  getMyStudents
 } = require('../controllers/adminController');
 const { protect, authorize, restrictTestAdmin } = require('../middleware/auth');
 
@@ -23,7 +24,7 @@ router.use(authorize('admin', 'test_admin'));
 // ==================== СТАТИСТИК ====================
 router.get('/stats', getAdminStats);
 router.get('/logs', getAdminLogs);
-
+router.get('/my-students', getMyStudents); // <- Энийг нэмэх
 // ==================== ХЭРЭГЛЭГЧ УДИРДЛАГА ====================
 router.get('/users', getAllUsers);
 router.get('/users/:id', getUserById);

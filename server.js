@@ -38,13 +38,16 @@ app.use((req, res, next) => {
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const courseRoutes = require('./routes/courseRoutes');
-const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+
+// ❗ userRoutes – ШИНЭ ЗӨВ ИМПОРТ
+const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes);        // Private routes
+app.use('/api/users', publicRouter);      // Public routes
 app.use('/api/admin', adminRoutes);
 
 // Health check

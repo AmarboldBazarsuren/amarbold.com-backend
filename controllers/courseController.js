@@ -5,7 +5,10 @@ const db = require('../config/db');
 // @access  Private
 exports.getAllCourses = async (req, res) => {
   try {
-    const { category, search, status = 'published' } = req.query;
+    const { category, search, status } = req.query;
+    
+    // status=all бол бүх хичээл, үгүй бол зөвхөн published
+    const actualStatus = status === 'all' ? null : (status || 'published');
     
     let query = `
       SELECT 
@@ -18,10 +21,16 @@ exports.getAllCourses = async (req, res) => {
       FROM courses c
       LEFT JOIN categories cat ON c.category_id = cat.id
       LEFT JOIN users u ON c.instructor_id = u.id
-      WHERE c.status = ?
+      WHERE 1=1
     `;
     
-    const params = [status];
+    const params = [];
+
+    // Status шүүлт
+    if (actualStatus) {
+      query += ' AND c.status = ?';
+      params.push(actualStatus);
+    }
 
     if (category) {
       query += ' AND cat.slug = ?';
@@ -43,14 +52,17 @@ exports.getAllCourses = async (req, res) => {
       title: course.title,
       slug: course.slug,
       description: course.description,
+      full_description: course.full_description,
       thumbnail: course.thumbnail,
       category: course.category_slug,
+      category_id: course.category_id,
       price: parseFloat(course.price),
       is_free: course.is_free === 1,
       duration: course.duration,
       level: course.level,
       rating: parseFloat(course.rating),
       students: course.total_students,
+      status: course.status,
       instructor: {
         id: course.instructor_id,
         name: course.instructor_name
@@ -196,7 +208,7 @@ exports.enrollCourse = async (req, res) => {
     }
 
     // Бүртгэл үүсгэх
-    const paymentStatus = course.is_free ? 'free' : 'paid'; // Түр зуур бүх төлбөртэй хичээлийг paid гэж тооцно
+    const paymentStatus = course.is_free ? 'free' : 'paid';
     
     await db.query(
       'INSERT INTO enrollments (user_id, course_id, payment_status, payment_amount) VALUES (?, ?, ?, ?)',

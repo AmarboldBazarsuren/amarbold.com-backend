@@ -1,15 +1,35 @@
 const express = require('express');
+
 const router = express.Router();
+const publicRouter = express.Router();
+
 const {
   updateProfile,
-  changePassword
+  changePassword,
+  updateInstructorProfile,
+  getInstructorProfile
 } = require('../controllers/userController');
+
 const { protect } = require('../middleware/auth');
 
-// Бүх routes хамгаалагдсан
+// ========================
+// Private routes
+// ========================
 router.use(protect);
 
 router.put('/profile', updateProfile);
 router.put('/change-password', changePassword);
+router.put('/instructor-profile', updateInstructorProfile);
 
-module.exports = router;
+// ========================
+// Public routes
+// ========================
+publicRouter.get('/instructor/:id', getInstructorProfile);
+
+// ========================
+// EXPORTS
+// ========================
+module.exports = {
+  router,
+  publicRouter,
+};
