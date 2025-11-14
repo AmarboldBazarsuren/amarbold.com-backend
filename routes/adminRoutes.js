@@ -13,18 +13,20 @@ const {
   addLesson,
   getAdminStats,
   getAdminLogs,
-  getMyStudents
+  getMyStudents,
+  getAdminCourses // ✅ Шинэ функц нэмэх
 } = require('../controllers/adminController');
-const { protect, authorize, restrictTestAdmin } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
-// Бүх routes Admin эрх шаардлагатай
+// Бүх routes Admin эсвэл Test Admin эрх шаардлагатай
 router.use(protect);
 router.use(authorize('admin', 'test_admin'));
 
 // ==================== СТАТИСТИК ====================
 router.get('/stats', getAdminStats);
-router.get('/logs', getAdminLogs);
-router.get('/my-students', getMyStudents); // <- Энийг нэмэх
+router.get('/logs', authorize('admin'), getAdminLogs);
+router.get('/my-students', getMyStudents);
+
 // ==================== ХЭРЭГЛЭГЧ УДИРДЛАГА ====================
 router.get('/users', getAllUsers);
 router.get('/users/:id', getUserById);
@@ -32,16 +34,17 @@ router.get('/users/:id', getUserById);
 // Зөвхөн Super Admin
 router.post('/users/create-test-admin', authorize('admin'), createTestAdmin);
 router.put('/users/:id/role', authorize('admin'), updateUserRole);
-
-// Admin болон Test Admin (харин Test Admin зөвхөн GET)
-router.put('/users/:id/status', restrictTestAdmin('update'), updateUserStatus);
+router.put('/users/:id/status', authorize('admin'), updateUserStatus);
 
 // ==================== ХИЧЭЭЛ УДИРДЛАГА ====================
-// Test Admin зөвхөн үзэх эрхтэй
-router.post('/courses', restrictTestAdmin('create'), createCourse);
-router.put('/courses/:id', restrictTestAdmin('update'), updateCourse);
-router.delete('/courses/:id', restrictTestAdmin('delete'), authorize('admin'), deleteCourse);
-router.post('/courses/:id/sections', restrictTestAdmin('create'), addCourseSection);
-router.post('/sections/:sectionId/lessons', restrictTestAdmin('create'), addLesson);
+// ✅ Админ самбарын хичээлүүд (Test Admin өөрийнхөө, Super Admin бүгдийг)
+router.get('/courses', getAdminCourses);
+
+// Test Admin БАС хичээл нэмж, засах эрхтэй
+router.post('/courses', createCourse);
+router.put('/courses/:id', updateCourse);
+router.delete('/courses/:id', authorize('admin'), deleteCourse);
+router.post('/courses/:id/sections', addCourseSection);
+router.post('/sections/:sectionId/lessons', addLesson);
 
 module.exports = router;

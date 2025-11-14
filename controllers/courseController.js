@@ -3,12 +3,20 @@ const db = require('../config/db');
 // @desc    Бүх хичээлүүдийг авах
 // @route   GET /api/courses
 // @access  Private
+// ✅ getAllCourses функцийг засах (мөр 6 орчим)
+
 exports.getAllCourses = async (req, res) => {
   try {
     const { category, search, status } = req.query;
     
-    // status=all бол бүх хичээл, үгүй бол зөвхөн published
-    const actualStatus = status === 'all' ? null : (status || 'published');
+    // ✅ status шүүлтийг зөв ажиллуулах
+    let statusCondition = 'published'; // Default
+    
+    if (status === 'all') {
+      statusCondition = null; // Бүх статусыг авна
+    } else if (status) {
+      statusCondition = status;
+    }
     
     let query = `
       SELECT 
@@ -26,10 +34,10 @@ exports.getAllCourses = async (req, res) => {
     
     const params = [];
 
-    // Status шүүлт
-    if (actualStatus) {
+    // ✅ Status шүүлт
+    if (statusCondition) {
       query += ' AND c.status = ?';
-      params.push(actualStatus);
+      params.push(statusCondition);
     }
 
     if (category) {
@@ -62,7 +70,7 @@ exports.getAllCourses = async (req, res) => {
       level: course.level,
       rating: parseFloat(course.rating),
       students: course.total_students,
-      status: course.status,
+      status: course.status, // ✅ Статусыг буцаана
       instructor: {
         id: course.instructor_id,
         name: course.instructor_name
@@ -82,7 +90,6 @@ exports.getAllCourses = async (req, res) => {
     });
   }
 };
-
 // @desc    Хичээлийн дэлгэрэнгүй мэдээлэл авах
 // @route   GET /api/courses/:id
 // @access  Private
@@ -285,6 +292,79 @@ exports.getMyCourses = async (req, res) => {
     });
   } catch (error) {
     console.error('GetMyCourses Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
+// ❌ Энэ функц байхгүй - Шинээр нэмнэ
+
+// @desc    Админ самбарын хичээлүүд авах (Test Admin өөрийнхөө, Super Admin бүгдийг)
+// @route   GET /api/admin/courses
+// @access  Private/Admin
+exports.getAdminCourses = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let query = `
+      SELECT 
+        c.*,
+        cat.name as category_name,
+        cat.slug as category_slug,
+        u.name as instructor_name,
+        u.id as instructor_id,
+        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
+      FROM courses c
+      LEFT JOIN categories cat ON c.category_id = cat.id
+      LEFT JOIN users u ON c.instructor_id = u.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // ✅ Test Admin зөвхөн өөрийнхөө хичээлүүдийг харна
+    if (userRole === 'test_admin') {
+      query += ' AND c.instructor_id = ?';
+      params.push(userId);
+    }
+    // Super Admin бүх хичээлийг харна
+
+    query += ' ORDER BY c.created_at DESC';
+
+    const [courses] = await db.query(query, params);
+
+    // Хичээл бүрийн мэдээллийг format хийх
+    const formattedCourses = courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      full_description: course.full_description,
+      thumbnail: course.thumbnail,
+      category: course.category_slug,
+      category_id: course.category_id,
+      price: parseFloat(course.price),
+      is_free: course.is_free === 1,
+      duration: course.duration,
+      level: course.level,
+      rating: parseFloat(course.rating),
+      students: course.total_students,
+      status: course.status,
+      instructor: {
+        id: course.instructor_id,
+        name: course.instructor_name
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: formattedCourses.length,
+      data: formattedCourses
+    });
+  } catch (error) {
+    console.error('GetAdminCourses Алдаа:', error);
     res.status(500).json({
       success: false,
       message: 'Серверийн алдаа гарлаа'

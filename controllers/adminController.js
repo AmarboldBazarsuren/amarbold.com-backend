@@ -358,6 +358,8 @@ exports.updateUserRole = async (req, res) => {
 // @desc    Хичээл үүсгэх
 // @route   POST /api/admin/courses
 // @access  Private/Admin
+// CREATE хичээл хэсгийг ингэж зас (мөр 159 орчим)
+
 exports.createCourse = async (req, res) => {
   try {
     const {
@@ -385,12 +387,12 @@ exports.createCourse = async (req, res) => {
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-');
 
-    // Хичээл үүсгэх
+    // ✅ ЭНЭ ХЭСГИЙГ ЗАСАХ - status='published' болгох
     const [result] = await db.query(`
       INSERT INTO courses 
       (title, slug, description, full_description, category_id, instructor_id, 
        price, is_free, duration, level, thumbnail, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
     `, [
       title,
       slug + '-' + Date.now(),
@@ -659,56 +661,98 @@ exports.addLesson = async (req, res) => {
 // @desc    Dashboard статистик
 // @route   GET /api/admin/stats
 // @access  Private/Admin
+// @desc    Dashboard статистик (Test Admin өөрийнхөө, Super Admin бүгдийг)
+// @route   GET /api/admin/stats
+// @access  Private/Admin
+// @desc    Dashboard статистик (Test Admin өөрийнхөө, Super Admin бүгдийг)
+// @route   GET /api/admin/stats
+// @access  Private/Admin
 exports.getAdminStats = async (req, res) => {
   try {
-    // Нийт хэрэглэгчид
-    const [totalUsers] = await db.query(
-      'SELECT COUNT(*) as count FROM users WHERE role = "user"'
-    );
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Нийт хичээлүүд
-    const [totalCourses] = await db.query(
-      'SELECT COUNT(*) as count FROM courses WHERE status = "published"'
-    );
+    // ✅ Нийт хэрэглэгчид (зөвхөн Super Admin харна)
+    let totalUsers = 0;
+    if (userRole === 'admin') {
+      const [users] = await db.query(
+        'SELECT COUNT(*) as count FROM users WHERE role = "user"'
+      );
+      totalUsers = users[0].count;
+    }
 
-    // Нийт бүртгэлүүд
-    const [totalEnrollments] = await db.query(
-      'SELECT COUNT(*) as count FROM enrollments'
-    );
+    // ✅ Нийт хичээлүүд
+    let totalCoursesQuery = 'SELECT COUNT(*) as count FROM courses WHERE status = "published"';
+    let totalCoursesParams = [];
+    
+    if (userRole === 'test_admin') {
+      totalCoursesQuery += ' AND instructor_id = ?';
+      totalCoursesParams.push(userId);
+    }
+    
+    const [totalCourses] = await db.query(totalCoursesQuery, totalCoursesParams);
 
-    // Орлого (төлбөртэй бүртгэлүүд)
-    const [totalRevenue] = await db.query(
-      'SELECT SUM(payment_amount) as total FROM enrollments WHERE payment_status = "paid"'
-    );
+    // ✅ Нийт бүртгэлүүд
+    let enrollmentsQuery = 'SELECT COUNT(*) as count FROM enrollments';
+    let enrollmentsParams = [];
+    
+    if (userRole === 'test_admin') {
+      enrollmentsQuery += ' WHERE course_id IN (SELECT id FROM courses WHERE instructor_id = ?)';
+      enrollmentsParams.push(userId);
+    }
+    
+    const [totalEnrollments] = await db.query(enrollmentsQuery, enrollmentsParams);
 
-    // Шинэ хэрэглэгчид (сүүлийн 30 хоног)
-    const [newUsers] = await db.query(`
-      SELECT COUNT(*) as count 
-      FROM users 
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    `);
+    // ✅ Орлого (төлбөртэй бүртгэлүүд)
+    let revenueQuery = 'SELECT SUM(payment_amount) as total FROM enrollments WHERE payment_status = "paid"';
+    let revenueParams = [];
+    
+    if (userRole === 'test_admin') {
+      revenueQuery += ' AND course_id IN (SELECT id FROM courses WHERE instructor_id = ?)';
+      revenueParams.push(userId);
+    }
+    
+    const [totalRevenue] = await db.query(revenueQuery, revenueParams);
 
-    // Топ хичээлүүд
-    const [topCourses] = await db.query(`
+    // ✅ Шинэ хэрэглэгчид (сүүлийн 30 хоног) - зөвхөн Super Admin
+    let newUsers = 0;
+    if (userRole === 'admin') {
+      const [newUsersResult] = await db.query(`
+        SELECT COUNT(*) as count 
+        FROM users 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      `);
+      newUsers = newUsersResult[0].count;
+    }
+
+    // ✅ Топ хичээлүүд
+    let topCoursesQuery = `
       SELECT 
         c.id, c.title, c.thumbnail,
         COUNT(e.id) as enrollments
       FROM courses c
       LEFT JOIN enrollments e ON c.id = e.course_id
       WHERE c.status = 'published'
-      GROUP BY c.id
-      ORDER BY enrollments DESC
-      LIMIT 5
-    `);
+    `;
+    let topCoursesParams = [];
+    
+    if (userRole === 'test_admin') {
+      topCoursesQuery += ' AND c.instructor_id = ?';
+      topCoursesParams.push(userId);
+    }
+    
+    topCoursesQuery += ' GROUP BY c.id ORDER BY enrollments DESC LIMIT 5';
+    
+    const [topCourses] = await db.query(topCoursesQuery, topCoursesParams);
 
     res.status(200).json({
       success: true,
       data: {
-        totalUsers: totalUsers[0].count,
+        totalUsers,
         totalCourses: totalCourses[0].count,
         totalEnrollments: totalEnrollments[0].count,
         totalRevenue: totalRevenue[0].total || 0,
-        newUsersThisMonth: newUsers[0].count,
+        newUsersThisMonth: newUsers,
         topCourses
       }
     });
@@ -720,7 +764,6 @@ exports.getAdminStats = async (req, res) => {
     });
   }
 };
-
 // @desc    Admin logs харах
 // @route   GET /api/admin/logs
 // @access  Private/Admin
@@ -752,4 +795,74 @@ exports.getAdminLogs = async (req, res) => {
     });
   }
   
+};// @desc    Админ самбарын хичээлүүд авах (Test Admin өөрийнхөө, Super Admin бүгдийг)
+// @route   GET /api/admin/courses
+// @access  Private/Admin
+exports.getAdminCourses = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let query = `
+      SELECT 
+        c.*,
+        cat.name as category_name,
+        cat.slug as category_slug,
+        u.name as instructor_name,
+        u.id as instructor_id,
+        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
+      FROM courses c
+      LEFT JOIN categories cat ON c.category_id = cat.id
+      LEFT JOIN users u ON c.instructor_id = u.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // ✅ Test Admin зөвхөн өөрийнхөө хичээлүүдийг харна
+    if (userRole === 'test_admin') {
+      query += ' AND c.instructor_id = ?';
+      params.push(userId);
+    }
+    // Super Admin бүх хичээлийг харна
+
+    query += ' ORDER BY c.created_at DESC';
+
+    const [courses] = await db.query(query, params);
+
+    // Хичээл бүрийн мэдээллийг format хийх
+    const formattedCourses = courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      full_description: course.full_description,
+      thumbnail: course.thumbnail,
+      category: course.category_slug,
+      category_id: course.category_id,
+      price: parseFloat(course.price),
+      is_free: course.is_free === 1,
+      duration: course.duration,
+      level: course.level,
+      rating: parseFloat(course.rating),
+      students: course.total_students,
+      status: course.status,
+      instructor: {
+        id: course.instructor_id,
+        name: course.instructor_name
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: formattedCourses.length,
+      data: formattedCourses
+    });
+  } catch (error) {
+    console.error('GetAdminCourses Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
 };

@@ -68,6 +68,9 @@ exports.authorize = (...roles) => {
   };
 };
 
+// ❌ ЭНЭ ФУНКЦИЙГ УСТГАХ - Хэрэггүй болсон
+// exports.restrictTestAdmin харин хэрэглэхгүй байна
+
 // Test Admin эрхийг хязгаарлах (зөвхөн харах эрхтэй)
 exports.restrictTestAdmin = (action) => {
   return (req, res, next) => {
