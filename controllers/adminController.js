@@ -866,3 +866,238 @@ exports.getAdminCourses = async (req, res) => {
     });
   }
 };
+// @desc    Section засах
+// @route   PUT /api/admin/sections/:id
+// @access  Private/Admin
+exports.updateSection = async (req, res) => {
+  try {
+    const sectionId = req.params.id;
+    const { title, description, order_number } = req.body;
+
+    // Section байгаа эсэхийг шалгах
+    const [sections] = await db.query(
+      'SELECT id, course_id FROM course_sections WHERE id = ?',
+      [sectionId]
+    );
+
+    if (sections.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Section олдсонгүй'
+      });
+    }
+
+    // Эрх шалгах (Test Admin зөвхөн өөрийнхөө хичээлийн section засна)
+    if (req.user.role === 'test_admin') {
+      const [courses] = await db.query(
+        'SELECT instructor_id FROM courses WHERE id = ?',
+        [sections[0].course_id]
+      );
+      
+      if (courses.length === 0 || courses[0].instructor_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Танд энэ section засах эрх байхгүй'
+        });
+      }
+    }
+
+    // Шинэчлэх
+    await db.query(`
+      UPDATE course_sections SET
+        title = COALESCE(?, title),
+        description = COALESCE(?, description),
+        order_number = COALESCE(?, order_number)
+      WHERE id = ?
+    `, [title, description, order_number, sectionId]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Section амжилттай шинэчлэгдлээ'
+    });
+  } catch (error) {
+    console.error('UpdateSection Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
+
+// @desc    Section устгах
+// @route   DELETE /api/admin/sections/:id
+// @access  Private/Admin
+exports.deleteSection = async (req, res) => {
+  try {
+    const sectionId = req.params.id;
+
+    // Section байгаа эсэхийг шалгах
+    const [sections] = await db.query(
+      'SELECT id, course_id, title FROM course_sections WHERE id = ?',
+      [sectionId]
+    );
+
+    if (sections.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Section олдсонгүй'
+      });
+    }
+
+    // Эрх шалгах
+    if (req.user.role === 'test_admin') {
+      const [courses] = await db.query(
+        'SELECT instructor_id FROM courses WHERE id = ?',
+        [sections[0].course_id]
+      );
+      
+      if (courses.length === 0 || courses[0].instructor_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Танд энэ section устгах эрх байхгүй'
+        });
+      }
+    }
+
+    // Устгах
+    await db.query('DELETE FROM course_sections WHERE id = ?', [sectionId]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Section амжилттай устгагдлаа'
+    });
+  } catch (error) {
+    console.error('DeleteSection Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
+
+// @desc    Lesson засах
+// @route   PUT /api/admin/lessons/:id
+// @access  Private/Admin
+exports.updateLesson = async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const {
+      title,
+      description,
+      video_url,
+      duration,
+      order_number,
+      is_free_preview
+    } = req.body;
+
+    // Lesson байгаа эсэхийг шалгах
+    const [lessons] = await db.query(
+      'SELECT id, course_id FROM lessons WHERE id = ?',
+      [lessonId]
+    );
+
+    if (lessons.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Хичээл олдсонгүй'
+      });
+    }
+
+    // Эрх шалгах
+    if (req.user.role === 'test_admin') {
+      const [courses] = await db.query(
+        'SELECT instructor_id FROM courses WHERE id = ?',
+        [lessons[0].course_id]
+      );
+      
+      if (courses.length === 0 || courses[0].instructor_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Танд энэ хичээл засах эрх байхгүй'
+        });
+      }
+    }
+
+    // Шинэчлэх
+    await db.query(`
+      UPDATE lessons SET
+        title = COALESCE(?, title),
+        description = COALESCE(?, description),
+        video_url = COALESCE(?, video_url),
+        duration = COALESCE(?, duration),
+        order_number = COALESCE(?, order_number),
+        is_free_preview = COALESCE(?, is_free_preview)
+      WHERE id = ?
+    `, [
+      title,
+      description,
+      video_url,
+      duration,
+      order_number,
+      is_free_preview,
+      lessonId
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Хичээл амжилттай шинэчлэгдлээ'
+    });
+  } catch (error) {
+    console.error('UpdateLesson Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
+
+// @desc    Lesson устгах
+// @route   DELETE /api/admin/lessons/:id
+// @access  Private/Admin
+exports.deleteLesson = async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+
+    // Lesson байгаа эсэхийг шалгах
+    const [lessons] = await db.query(
+      'SELECT id, course_id, title FROM lessons WHERE id = ?',
+      [lessonId]
+    );
+
+    if (lessons.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Хичээл олдсонгүй'
+      });
+    }
+
+    // Эрх шалгах
+    if (req.user.role === 'test_admin') {
+      const [courses] = await db.query(
+        'SELECT instructor_id FROM courses WHERE id = ?',
+        [lessons[0].course_id]
+      );
+      
+      if (courses.length === 0 || courses[0].instructor_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Танд энэ хичээл устгах эрх байхгүй'
+        });
+      }
+    }
+
+    // Устгах
+    await db.query('DELETE FROM lessons WHERE id = ?', [lessonId]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Хичээл амжилттай устгагдлаа'
+    });
+  } catch (error) {
+    console.error('DeleteLesson Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
