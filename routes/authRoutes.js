@@ -10,4 +10,4 @@ router.post('/login', login);
 // Private routes
 router.get('/me', protect, getMe);
 
-module.exports = router;
+module.exports = router; 
