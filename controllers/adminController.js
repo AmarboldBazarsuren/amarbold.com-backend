@@ -384,6 +384,8 @@ exports.updateUserRole = async (req, res) => {
 // @access  Private/Admin
 // CREATE хичээл хэсгийг ингэж зас (мөр 159 орчим)
 
+// adminController.js - createCourse функц засварлах
+
 exports.createCourse = async (req, res) => {
   try {
     const {
@@ -394,41 +396,41 @@ exports.createCourse = async (req, res) => {
       price,
       is_free,
       duration,
-      level,
-      thumbnail
+      thumbnail,
+      preview_video_url  // ✅ Шинэ талбар
     } = req.body;
 
     // Validation
-    if (!title || !description || !category_id) {
+    if (!title || !description || !thumbnail) {
       return res.status(400).json({
         success: false,
-        message: 'Шаардлагатай талбаруудыг бөглөнө үү'
+        message: 'Нэр, тайлбар, зургийн URL шаардлагатай'
       });
     }
 
-    // Slug үүсгэх (энгийн хувилбар)
+    // Slug үүсгэх
     const slug = title.toLowerCase()
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-');
 
-    // ✅ ЭНЭ ХЭСГИЙГ ЗАСАХ - status='published' болгох
+    // ✅ level устгасан, preview_video_url нэмсэн, category_id optional
     const [result] = await db.query(`
       INSERT INTO courses 
       (title, slug, description, full_description, category_id, instructor_id, 
-       price, is_free, duration, level, thumbnail, status)
+       price, is_free, duration, thumbnail, preview_video_url, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
     `, [
       title,
       slug + '-' + Date.now(),
       description,
       full_description || description,
-      category_id,
+      category_id || null,  // ✅ Хоосон байж болно
       req.user.id,
       price || 0,
       is_free || false,
       duration || 0,
-      level || 'beginner',
-      thumbnail || null
+      thumbnail,
+      preview_video_url || null,  // ✅ Үнэгүй бичлэг
     ]);
 
     // Admin log
@@ -455,6 +457,82 @@ exports.createCourse = async (req, res) => {
   }
 };
 
+// ✅ updateCourse функц засварлах
+exports.updateCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const {
+      title,
+      description,
+      full_description,
+      category_id,
+      price,
+      is_free,
+      duration,
+      thumbnail,
+      preview_video_url,  // ✅ Шинэ
+      status
+    } = req.body;
+
+    // Хичээл байгаа эсэхийг шалгах
+    const [courses] = await db.query(
+      'SELECT id FROM courses WHERE id = ?',
+      [courseId]
+    );
+
+    if (courses.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Хичээл олдсонгүй'
+      });
+    }
+
+    // ✅ level устгасан, preview_video_url нэмсэн
+    await db.query(`
+      UPDATE courses SET
+        title = COALESCE(?, title),
+        description = COALESCE(?, description),
+        full_description = COALESCE(?, full_description),
+        category_id = ?,
+        price = COALESCE(?, price),
+        is_free = COALESCE(?, is_free),
+        duration = COALESCE(?, duration),
+        thumbnail = COALESCE(?, thumbnail),
+        preview_video_url = ?,
+        status = COALESCE(?, status)
+      WHERE id = ?
+    `, [
+      title,
+      description,
+      full_description,
+      category_id,  // ✅ NULL байж болно
+      price,
+      is_free,
+      duration,
+      thumbnail,
+      preview_video_url,  // ✅ NULL байж болно
+      status,
+      courseId
+    ]);
+
+    // Admin log
+    await db.query(
+      'INSERT INTO admin_logs (admin_id, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, 'update_course', 'course', courseId, 'Хичээл шинэчилсэн']
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Хичээл амжилттай шинэчлэгдлээ'
+    });
+  } catch (error) {
+    console.error('UpdateCourse Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
 // @desc    Хичээл шинэчлэх
 // @route   PUT /api/admin/courses/:id
 // @access  Private/Admin
