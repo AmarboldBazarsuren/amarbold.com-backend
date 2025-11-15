@@ -391,9 +391,6 @@ exports.updateUserRole = async (req, res) => {
 
 exports.createCourse = async (req, res) => {
   try {
-    // 🔥 REQUEST BODY шалгах
-    console.log('📦 Request Body:', JSON.stringify(req.body, null, 2));
-    
     const {
       title,
       description,
@@ -406,25 +403,46 @@ exports.createCourse = async (req, res) => {
       preview_video_url
     } = req.body;
 
-    // 🔥 MINIMAL validation - зөвхөн үнэхээр шаардлагатай
-    if (!title) {
+    // 🔥 BACKEND VALIDATION - Express Validator хангалтгүй бол
+    if (!title || title.trim().length < 3) {
       return res.status(400).json({
         success: false,
-        message: 'Хичээлийн нэр шаардлагатай'
+        message: 'Хичээлийн нэр дор хаяж 3 тэмдэгттэй байх ёстой'
       });
     }
 
-    if (!description) {
+    if (!description || description.trim().split(/\s+/).filter(w => w.length > 0).length < 5) {
       return res.status(400).json({
         success: false,
-        message: 'Тайлбар шаардлагатай'
+        message: 'Товч тайлбар дор хаяж 5 үгтэй байх ёстой'
+      });
+    }
+
+    if (!full_description || full_description.trim().split(/\s+/).filter(w => w.length > 0).length < 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'Дэлгэрэнгүй тайлбар дор хаяж 15 үгтэй байх ёстой'
       });
     }
 
     if (!thumbnail) {
       return res.status(400).json({
         success: false,
-        message: 'Зургийн URL шаардлагатай'
+        message: 'Зургийн URL заавал оруулах ёстой'
+      });
+    }
+
+    if (!preview_video_url) {
+      return res.status(400).json({
+        success: false,
+        message: 'Танилцуулга видео URL заавал оруулах ёстой'
+      });
+    }
+
+    if (price && price < 5000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Үнэ дор хаяж 5000₮-с дээш байх ёстой'
       });
     }
 
@@ -432,9 +450,6 @@ exports.createCourse = async (req, res) => {
     const slug = title.toLowerCase()
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-');
-
-    console.log('✅ Validation амжилттай');
-    console.log('📝 Slug:', slug + '-' + Date.now());
 
     // Database-д хадгалах
     const [result] = await db.query(`
@@ -446,17 +461,15 @@ exports.createCourse = async (req, res) => {
       title,
       slug + '-' + Date.now(),
       description,
-      full_description || description,
+      full_description,
       category_id || null,
       req.user.id,
       price || 0,
       is_free || false,
       duration || 0,
       thumbnail,
-      preview_video_url || null
+      preview_video_url
     ]);
-
-    console.log('✅ Database-д амжилттай хадгалагдлаа, ID:', result.insertId);
 
     // Admin log
     await db.query(
@@ -475,14 +488,12 @@ exports.createCourse = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ CreateCourse Алдаа:', error);
-    console.error('❌ Error details:', error.message);
     res.status(500).json({
       success: false,
       message: 'Серверийн алдаа гарлаа: ' + error.message
     });
   }
 };
-
 // ✅ updateCourse функц засварлах
 exports.updateCourse = async (req, res) => {
   try {

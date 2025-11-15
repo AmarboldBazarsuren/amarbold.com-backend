@@ -37,7 +37,7 @@ exports.validateLogin = [
   handleValidationErrors
 ];
 
-// 🔥 ЗАСВАРЛАСАН - category_id optional болгосон
+// 🔥 ШИНЭЧИЛСЭН - Хатуу валидаци
 exports.validateCourse = [
   body('title')
     .trim()
@@ -45,22 +45,46 @@ exports.validateCourse = [
     .withMessage('Хичээлийн нэр 3-255 тэмдэгттэй байх ёстой'),
   body('description')
     .trim()
-    .isLength({ min: 10 })
-    .withMessage('Тайлбар дор хаяж 10 тэмдэгттэй байх ёстой'),
+    .isLength({ min: 5 })
+    .withMessage('Товч тайлбар дор хаяж 5 үгтэй байх ёстой')
+    .custom((value) => {
+      const wordCount = value.trim().split(/\s+/).length;
+      if (wordCount < 5) {
+        throw new Error('Товч тайлбар дор хаяж 5 үгтэй байх ёстой');
+      }
+      return true;
+    }),
+  body('full_description')
+    .trim()
+    .notEmpty()
+    .withMessage('Дэлгэрэнгүй тайлбар заавал бөглөх ёстой')
+    .isLength({ min: 15 })
+    .withMessage('Дэлгэрэнгүй тайлбар дор хаяж 15 үгтэй байх ёстой')
+    .custom((value) => {
+      const wordCount = value.trim().split(/\s+/).length;
+      if (wordCount < 15) {
+        throw new Error('Дэлгэрэнгүй тайлбар дор хаяж 15 үгтэй байх ёстой');
+      }
+      return true;
+    }),
   body('price')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Үнэ 0-с их байх ёстой'),
+    .isFloat({ min: 5000 })
+    .withMessage('Үнэ дор хаяж 5000₮-с дээш байх ёстой'),
   body('thumbnail')
     .trim()
     .notEmpty()
-    .withMessage('Зургийн URL шаардлагатай'),
+    .withMessage('Зургийн URL заавал оруулах ёстой')
+    .isURL()
+    .withMessage('Зургийн URL буруу байна'),
+  body('preview_video_url')
+    .trim()
+    .notEmpty()
+    .withMessage('Танилцуулга видео URL заавал оруулах ёстой')
+    .isURL()
+    .withMessage('Видео URL буруу байна'),
   body('category_id')
-    .optional() // 🔥 Category заавал биш
+    .optional()
     .isInt()
     .withMessage('Ангилал тоо байх ёстой'),
-  body('preview_video_url')
-    .optional() // 🔥 Preview video заавал биш
-    .trim(),
   handleValidationErrors
 ];
