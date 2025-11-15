@@ -5,18 +5,29 @@ const db = require('../config/db');
 // @access  Private
 exports.getAllInstructors = async (req, res) => {
   try {
+    console.log('📚 getAllInstructors дуудагдлаа');
+    
     const [instructors] = await db.query(`
       SELECT 
-        u.id, u.name, u.email, u.bio, u.teaching_categories,
-        u.profile_image, u.profile_banner, u.created_at,
+        u.id, 
+        u.name, 
+        u.email, 
+        u.role,
+        COALESCE(u.bio, 'Танилцуулга нэмэгдээгүй байна') as bio, 
+        COALESCE(u.teaching_categories, 'Ангилал нэмэгдээгүй') as teaching_categories,
+        u.profile_image, 
+        u.profile_banner, 
+        u.created_at,
         (SELECT COUNT(*) FROM courses WHERE instructor_id = u.id AND status = 'published') as total_courses,
         (SELECT COUNT(DISTINCT e.user_id) FROM enrollments e 
          JOIN courses c ON e.course_id = c.id 
          WHERE c.instructor_id = u.id) as total_students
       FROM users u
       WHERE u.role IN ('test_admin', 'admin')
-      ORDER BY total_courses DESC, total_students DESC
+      ORDER BY u.created_at DESC
     `);
+
+    console.log(`✅ ${instructors.length} багш олдлоо:`, instructors.map(i => i.name));
 
     res.status(200).json({
       success: true,
@@ -24,10 +35,11 @@ exports.getAllInstructors = async (req, res) => {
       data: instructors
     });
   } catch (error) {
-    console.error('GetAllInstructors Алдаа:', error);
+    console.error('❌ GetAllInstructors Алдаа:', error);
     res.status(500).json({
       success: false,
-      message: 'Серверийн алдаа гарлаа'
+      message: 'Серверийн алдаа гарлаа',
+      error: error.message
     });
   }
 };
@@ -41,7 +53,9 @@ exports.getInstructorDetail = async (req, res) => {
 
     const [instructors] = await db.query(`
       SELECT 
-        u.id, u.name, u.email, u.bio, u.teaching_categories,
+        u.id, u.name, u.email, 
+        COALESCE(u.bio, 'Танилцуулга нэмэгдээгүй байна') as bio, 
+        COALESCE(u.teaching_categories, 'Ангилал нэмэгдээгүй') as teaching_categories,
         u.profile_image, u.profile_banner, u.created_at,
         (SELECT COUNT(*) FROM courses WHERE instructor_id = u.id AND status = 'published') as total_courses,
         (SELECT COUNT(DISTINCT e.user_id) FROM enrollments e 
@@ -99,9 +113,4 @@ exports.getInstructorDetail = async (req, res) => {
       message: 'Серверийн алдаа гарлаа'
     });
   }
-};
-
-module.exports = {
-  getAllInstructors,
-  getInstructorDetail
 };

@@ -24,7 +24,7 @@ router.put('/instructor-profile', updateInstructorProfile);
 // ========================
 // Public routes
 // ========================
-publicRouter.get('/instructor/:id', getInstructorProfile);
+publicRouter.get('/instructor/:id', protect, getInstructorProfile);  // ✅ protect нэмсэн
 
 // ========================
 // EXPORTS

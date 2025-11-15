@@ -300,6 +300,9 @@ exports.updateUserStatus = async (req, res) => {
 // @desc    Хэрэглэгчийн эрх өөрчлөх
 // @route   PUT /api/admin/users/:id/role
 // @access  Private/Admin (Super Admin only)
+// @desc    Хэрэглэгчийн эрх өөрчлөх
+// @route   PUT /api/admin/users/:id/role
+// @access  Private/Admin (Super Admin only)
 exports.updateUserRole = async (req, res) => {
   try {
     // Зөвхөн Super Admin л эрх өөрчилж чадна
@@ -329,16 +332,39 @@ exports.updateUserRole = async (req, res) => {
       });
     }
 
-    await db.query(
-      'UPDATE users SET role = ? WHERE id = ?',
-      [role, userId]
-    );
+    // Хэрэглэгчийн мэдээлэл авах
+    const [users] = await db.query('SELECT name, role FROM users WHERE id = ?', [userId]);
+    
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Хэрэглэгч олдсонгүй'
+      });
+    }
+
+    // ✅ Эрх өөрчлөх + test_admin бол багшийн талбар нэмэх
+    if (role === 'test_admin' || role === 'admin') {
+      // Багш болгохдоо bio, teaching_categories автоматаар нэмнэ
+      await db.query(
+        `UPDATE users SET 
+          role = ?,
+          bio = COALESCE(bio, 'Танилцуулга нэмэгдээгүй байна'),
+          teaching_categories = COALESCE(teaching_categories, 'Ангилал тодорхойгүй')
+        WHERE id = ?`,
+        [role, userId]
+      );
+    } else {
+      // Энгийн user болгох
+      await db.query('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
+    }
 
     // Admin log
     await db.query(
       'INSERT INTO admin_logs (admin_id, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, 'update_user_role', 'user', userId, `Эрх: ${role}`]
+      [req.user.id, 'update_user_role', 'user', userId, `Эрх: ${users[0].role} → ${role}`]
     );
+
+    console.log(`✅ ${users[0].name} (ID: ${userId}) - ${users[0].role} → ${role}`);
 
     res.status(200).json({
       success: true,
@@ -352,7 +378,6 @@ exports.updateUserRole = async (req, res) => {
     });
   }
 };
-
 // ==================== ХИЧЭЭЛ УДИРДЛАГА ====================
 
 // @desc    Хичээл үүсгэх

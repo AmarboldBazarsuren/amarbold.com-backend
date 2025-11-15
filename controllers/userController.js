@@ -142,7 +142,7 @@ exports.updateInstructorProfile = async (req, res) => {
 
 // @desc    Багшийн нийтийн профайл авах
 // @route   GET /api/users/instructor/:id
-// @access  Public
+// @access  Private
 exports.getInstructorProfile = async (req, res) => {
   try {
     const instructorId = req.params.id;

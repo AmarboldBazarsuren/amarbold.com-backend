@@ -3,54 +3,36 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Environment variables
 dotenv.config();
-
-// Database холболт
 require('./config/db');
 
-// Express app үүсгэх
 const app = express();
 
 // ==================== MIDDLEWARE ====================
-
-// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// CORS
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
-
-// Static files (uploads folder)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request logging
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  console.log(req.method + ' ' + req.path + ' - ' + new Date().toISOString());
   next();
 });
 
 // ==================== ROUTES ====================
+// ⚠️ ЧУХАЛ: Routes-ыг 404 handler-ээс ӨМНӨ тодорхойлох ёстой!
 
-// Import routes
 const authRoutes = require('./routes/authRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-
-// ❗ userRoutes – ШИНЭ ЗӨВ ИМПОРТ
+const instructorRoutes = require('./routes/instructorRoutes');
 const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
 
-// Mount routes
-app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);
-app.use('/api/users', userRoutes);        // Private routes
-app.use('/api/users', publicRouter);      // Public routes
-app.use('/api/admin', adminRoutes);
-
-// Health check
+// Health check - хамгийн эхэнд
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -64,15 +46,24 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'AmarBold.mn API',
-    version: '1.0.0',
-    documentation: '/api/docs'
+    version: '1.0.0'
   });
 });
 
-// ==================== ERROR HANDLING ====================
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/users', publicRouter);
+app.use('/api/admin', adminRoutes);
+app.use('/api/instructors', instructorRoutes); // ⭐ ЭНЭ МӨРИЙГ ШАЛГААРАЙ
 
-// 404 Handler
+// ==================== ERROR HANDLING ====================
+// ⚠️ ЧУХАЛ: 404 handler нь routes-ын ДАРАА байх ёстой!
+
+// 404 Handler - routes-ын дараа
 app.use((req, res) => {
+  console.log('❌ 404 - Route олдсонгүй:', req.method, req.path);
   res.status(404).json({
     success: false,
     message: 'Route олдсонгүй'
@@ -81,8 +72,7 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Алдаа:', err);
-  
+  console.error('❌ Алдаа:', err);
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.message || 'Серверийн алдаа',
@@ -90,29 +80,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ==================== SERVER ЭХЛҮҮЛЭХ ====================
+// ==================== SERVER ====================
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log('');
-  console.log('='.repeat(50));
-  console.log(`🚀 Server ажиллаж байна: http://localhost:${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-  console.log('='.repeat(50));
-  console.log('');
-  console.log('📍 API Endpoints:');
-  console.log(`   - Health: http://localhost:${PORT}/api/health`);
-  console.log(`   - Auth: http://localhost:${PORT}/api/auth`);
-  console.log(`   - Courses: http://localhost:${PORT}/api/courses`);
-  console.log(`   - Users: http://localhost:${PORT}/api/users`);
-  console.log(`   - Admin: http://localhost:${PORT}/api/admin`);
-  console.log('='.repeat(50));
+  console.log('==================================================');
+  console.log('🚀 Server: http://localhost:' + PORT);
+  console.log('==================================================');
+  console.log('✅ Routes бүртгэгдсэн:');
+  console.log('   POST   /api/auth/login');
+  console.log('   POST   /api/auth/register');
+  console.log('   GET    /api/courses');
+  console.log('   GET    /api/instructors  <-- ЭНЭ БАЙГАА ЭСЭХИЙГ ШАЛГААРАЙ');
+  console.log('   GET    /api/admin/stats');
+  console.log('==================================================');
   console.log('');
 });
 
-// Unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Rejection:', err.message);
   process.exit(1);
