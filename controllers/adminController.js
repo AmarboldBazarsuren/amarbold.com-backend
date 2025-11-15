@@ -54,9 +54,6 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// @desc    Багшийн суралцагчдыг харах (Test Admin өөрийнхөө)
-// @route   GET /api/admin/my-students
-// @access  Private/Admin (Test Admin)
 // @desc    Багшийн суралцагчдыг харах
 // @route   GET /api/admin/my-students
 // @access  Private/Admin (Test Admin болон Admin)
@@ -80,9 +77,12 @@ exports.getMyStudents = async (req, res) => {
 
     const courseIds = courses.map(c => c.id);
 
+    // ✅ Хичээлийн нэрийг харуулахын тулд course.title-г нэмсэн
     const [students] = await db.query(`
       SELECT DISTINCT
-        u.id, u.name, u.email,
+        u.id, 
+        u.name, 
+        u.email,
         e.enrolled_at,
         c.title as course_title,
         c.id as course_id
@@ -107,7 +107,6 @@ exports.getMyStudents = async (req, res) => {
     });
   }
 };
-
 // @desc    Хэрэглэгчийн дэлгэрэнгүй мэдээлэл
 // @route   GET /api/admin/users/:id
 // @access  Private/Admin

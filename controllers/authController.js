@@ -154,10 +154,19 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
+    // ✅ БҮХ ТАЛБАРУУДЫГ АВАХ - bio, teaching_categories, profile_banner нэмсэн
     const [users] = await db.query(
-      'SELECT id, name, email, role, status, profile_image, created_at FROM users WHERE id = ?',
+      `SELECT 
+        id, name, email, role, status, 
+        profile_image, profile_banner,
+        bio, teaching_categories,
+        created_at 
+      FROM users 
+      WHERE id = ?`,
       [req.user.id]
     );
+
+    console.log('✅ /api/auth/me response:', users[0]); // ✅ Debug log
 
     res.status(200).json({
       success: true,
