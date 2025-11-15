@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const helmet = require('helmet');
+const compression = require('compression');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 
 dotenv.config();
 require('./config/db');
@@ -16,7 +19,10 @@ app.use(cors({
   credentials: true
 }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+// Security
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(compression());
+app.use('/api/', apiLimiter);
 // Request logging
 app.use((req, res, next) => {
   console.log(req.method + ' ' + req.path + ' - ' + new Date().toISOString());
@@ -30,6 +36,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
 const lessonRoutes = require('./routes/lessonRoutes');
 const discountRoutes = require('./routes/discountRoutes'); // ✅ Шинэ
+const ratingRoutes = require('./routes/ratingRoutes');
 const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
 
 // Health check
@@ -51,7 +58,7 @@ app.get('/', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/users', publicRouter);
@@ -59,7 +66,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/discounts', discountRoutes); // ✅ Хямдрал routes
-
+app.use('/api/ratings', ratingRoutes);
 // ==================== ERROR HANDLING ====================
 // 404 Handler
 app.use((req, res) => {

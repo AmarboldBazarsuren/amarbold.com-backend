@@ -4,13 +4,14 @@ const {
   getAllCourses,
   getCourseById,
   enrollCourse,
-  getMyCourses
+  getMyCourses,
+  getDashboardStats
 } = require('../controllers/courseController');
 const { protect } = require('../middleware/auth');
 
 // Бүх routes хамгаалагдсан (нэвтэрсэн хэрэглэгч шаардлагатай)
 router.use(protect);
-
+router.get('/stats', getDashboardStats);
 router.get('/', getAllCourses);
 router.get('/my-courses', getMyCourses);
 router.get('/:id', getCourseById);

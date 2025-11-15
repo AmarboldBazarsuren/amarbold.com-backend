@@ -1,5 +1,51 @@
 const db = require('../config/db');
+// @desc    Dashboard статистик авах
+// @route   GET /api/courses/stats
+// @access  Private
+exports.getDashboardStats = async (req, res) => {
+  try {
+    // 1. Нийт хичээлүүд
+    const [totalCourses] = await db.query(
+      'SELECT COUNT(*) as count FROM courses WHERE status = "published"'
+    );
 
+    // 2. Нийт багш нар (test_admin + admin)
+    const [totalInstructors] = await db.query(
+      'SELECT COUNT(*) as count FROM users WHERE role IN ("test_admin", "admin")'
+    );
+
+    // 3. Идэвхтэй багш нар (сүүлийн 30 хоногт хичээл нэмсэн)
+    const [activeInstructors] = await db.query(`
+      SELECT COUNT(DISTINCT instructor_id) as count 
+      FROM courses 
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      AND status = 'published'
+    `);
+
+    // 4. Дундаж үнэлгээ (бүх хичээлүүдийн)
+    const [avgRating] = await db.query(`
+      SELECT AVG(rating) as avg_rating 
+      FROM courses 
+      WHERE status = 'published' AND rating > 0
+    `);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalCourses: totalCourses[0].count,
+        totalInstructors: totalInstructors[0].count,
+        activeInstructors: activeInstructors[0].count,
+        averageRating: avgRating[0].avg_rating ? parseFloat(avgRating[0].avg_rating).toFixed(1) : '4.8'
+      }
+    });
+  } catch (error) {
+    console.error('GetDashboardStats Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
 // @desc    Бүх хичээлүүдийг авах
 // @route   GET /api/courses
 // @access  Private
@@ -167,6 +213,7 @@ exports.getCourseById = async (req, res) => {
         description: course.description,
         fullDescription: course.full_description,
         thumbnail: course.thumbnail,
+        preview_video_url: course.preview_video_url,  // ✅ Нэмсэн
         category: course.category_name,
         price: parseFloat(course.price),
         discount_percent: course.discount_percent,

@@ -21,7 +21,7 @@ const {
   deleteLesson        // ✅ Шинэ
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
-
+const { validateCourse } = require('../middleware/validator');
 router.use(protect);
 router.use(authorize('admin', 'test_admin'));
 
@@ -39,8 +39,8 @@ router.put('/users/:id/status', authorize('admin'), updateUserStatus);
 
 // ==================== ХИЧЭЭЛ УДИРДЛАГА ====================
 router.get('/courses', getAdminCourses);
-router.post('/courses', createCourse);
-router.put('/courses/:id', updateCourse);
+router.post('/courses', validateCourse, createCourse);
+router.put('/courses/:id', validateCourse, updateCourse);
 router.delete('/courses/:id', authorize('admin'), deleteCourse);
 
 // Section
