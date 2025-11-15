@@ -17,21 +17,29 @@ exports.getAllCourses = async (req, res) => {
     } else if (status) {
       statusCondition = status;
     }
-    
-    let query = `
-      SELECT 
-        c.*,
-        cat.name as category_name,
-        cat.slug as category_slug,
-        u.name as instructor_name,
-        u.id as instructor_id,
-        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
-      FROM courses c
-      LEFT JOIN categories cat ON c.category_id = cat.id
-      LEFT JOIN users u ON c.instructor_id = u.id
-      WHERE 1=1
-    `;
-    
+   // getAllCourses функцийн query хэсгийг солих
+let query = `
+  SELECT 
+    c.*,
+    cat.name as category_name,
+    cat.slug as category_slug,
+    u.name as instructor_name,
+    u.id as instructor_id,
+    (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students,
+    cd.discount_percent,
+    cd.end_date as discount_end_date,
+    CASE 
+      WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
+      ELSE NULL
+    END as discount_price
+  FROM courses c
+  LEFT JOIN categories cat ON c.category_id = cat.id
+  LEFT JOIN users u ON c.instructor_id = u.id
+  LEFT JOIN course_discounts cd ON c.id = cd.course_id 
+    AND cd.is_active = 1 
+    AND NOW() BETWEEN cd.start_date AND cd.end_date
+  WHERE 1=1
+`;
     const params = [];
 
     // ✅ Status шүүлт

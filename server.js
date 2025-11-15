@@ -24,15 +24,15 @@ app.use((req, res, next) => {
 });
 
 // ==================== ROUTES ====================
-// ⚠️ ЧУХАЛ: Routes-ыг 404 handler-ээс ӨМНӨ тодорхойлох ёстой!
-
 const authRoutes = require('./routes/authRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
+const lessonRoutes = require('./routes/lessonRoutes');
+const discountRoutes = require('./routes/discountRoutes'); // ✅ Шинэ
 const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
 
-// Health check - хамгийн эхэнд
+// Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -56,12 +56,12 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/users', publicRouter);
 app.use('/api/admin', adminRoutes);
-app.use('/api/instructors', instructorRoutes); // ⭐ ЭНЭ МӨРИЙГ ШАЛГААРАЙ
+app.use('/api/instructors', instructorRoutes);
+app.use('/api/lessons', lessonRoutes);
+app.use('/api/discounts', discountRoutes); // ✅ Хямдрал routes
 
 // ==================== ERROR HANDLING ====================
-// ⚠️ ЧУХАЛ: 404 handler нь routes-ын ДАРАА байх ёстой!
-
-// 404 Handler - routes-ын дараа
+// 404 Handler
 app.use((req, res) => {
   console.log('❌ 404 - Route олдсонгүй:', req.method, req.path);
   res.status(404).json({
@@ -81,7 +81,6 @@ app.use((err, req, res, next) => {
 });
 
 // ==================== SERVER ====================
-
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
@@ -90,11 +89,42 @@ app.listen(PORT, () => {
   console.log('🚀 Server: http://localhost:' + PORT);
   console.log('==================================================');
   console.log('✅ Routes бүртгэгдсэн:');
+  console.log('   AUTH:');
   console.log('   POST   /api/auth/login');
   console.log('   POST   /api/auth/register');
+  console.log('   GET    /api/auth/me');
+  console.log('');
+  console.log('   COURSES:');
   console.log('   GET    /api/courses');
-  console.log('   GET    /api/instructors  <-- ЭНЭ БАЙГАА ЭСЭХИЙГ ШАЛГААРАЙ');
+  console.log('   GET    /api/courses/my-courses');
+  console.log('   GET    /api/courses/:id');
+  console.log('   POST   /api/courses/:id/enroll');
+  console.log('');
+  console.log('   INSTRUCTORS:');
+  console.log('   GET    /api/instructors');
+  console.log('   GET    /api/instructors/:id');
+  console.log('');
+  console.log('   LESSONS:');
+  console.log('   POST   /api/lessons/:lessonId/complete');
+  console.log('   DELETE /api/lessons/:lessonId/complete');
+  console.log('   GET    /api/lessons/:courseId/progress');
+  console.log('');
+  console.log('   DISCOUNTS: ✅');
+  console.log('   GET    /api/discounts/active');
+  console.log('   POST   /api/discounts/courses/:courseId');
+  console.log('   GET    /api/discounts/courses/:courseId');
+  console.log('   PUT    /api/discounts/:discountId/deactivate');
+  console.log('   DELETE /api/discounts/:discountId');
+  console.log('');
+  console.log('   USERS:');
+  console.log('   PUT    /api/users/profile');
+  console.log('   PUT    /api/users/change-password');
+  console.log('   PUT    /api/users/instructor-profile');
+  console.log('');
+  console.log('   ADMIN:');
   console.log('   GET    /api/admin/stats');
+  console.log('   GET    /api/admin/courses');
+  console.log('   POST   /api/admin/courses');
   console.log('==================================================');
   console.log('');
 });
