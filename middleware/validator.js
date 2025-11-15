@@ -37,6 +37,7 @@ exports.validateLogin = [
   handleValidationErrors
 ];
 
+// 🔥 ЗАСВАРЛАСАН - category_id optional болгосон
 exports.validateCourse = [
   body('title')
     .trim()
@@ -54,5 +55,12 @@ exports.validateCourse = [
     .trim()
     .notEmpty()
     .withMessage('Зургийн URL шаардлагатай'),
+  body('category_id')
+    .optional() // 🔥 Category заавал биш
+    .isInt()
+    .withMessage('Ангилал тоо байх ёстой'),
+  body('preview_video_url')
+    .optional() // 🔥 Preview video заавал биш
+    .trim(),
   handleValidationErrors
 ];

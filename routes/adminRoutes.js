@@ -40,7 +40,7 @@ router.put('/users/:id/status', authorize('admin'), updateUserStatus);
 // ==================== ХИЧЭЭЛ УДИРДЛАГА ====================
 router.get('/courses', getAdminCourses);
 router.post('/courses', validateCourse, createCourse);
-router.put('/courses/:id', validateCourse, updateCourse);
+router.put('/courses/:id',validateCourse, updateCourse);
 router.delete('/courses/:id', authorize('admin'), deleteCourse);
 
 // Section

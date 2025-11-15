@@ -5,29 +5,42 @@ const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
+const { errorHandler } = require('./middleware/errorHandler'); // 🔥 Шинэ
 
 dotenv.config();
 require('./config/db');
 
 const app = express();
 
+// 🔥 Trust proxy (production-д заавал хэрэгтэй)
+app.set('trust proxy', 1);
+
 // ==================== MIDDLEWARE ====================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // 🔥 Request size limit
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Security
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ 
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false // 🔥 YouTube embed-д зориулж
+}));
 app.use(compression());
 app.use('/api/', apiLimiter);
-// Request logging
-app.use((req, res, next) => {
-  console.log(req.method + ' ' + req.path + ' - ' + new Date().toISOString());
-  next();
-});
+
+// 🔥 Request logging (production-д minimal хэвээр)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+    next();
+  });
+}
 
 // ==================== ROUTES ====================
 const authRoutes = require('./routes/authRoutes');
@@ -35,7 +48,7 @@ const courseRoutes = require('./routes/courseRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
 const lessonRoutes = require('./routes/lessonRoutes');
-const discountRoutes = require('./routes/discountRoutes'); // ✅ Шинэ
+const discountRoutes = require('./routes/discountRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
 
@@ -44,7 +57,8 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server ажиллаж байна',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
   });
 });
 
@@ -53,7 +67,8 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'AmarBold.mn API',
-    version: '1.0.0'
+    version: '1.0.0',
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -65,80 +80,76 @@ app.use('/api/users', publicRouter);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/lessons', lessonRoutes);
-app.use('/api/discounts', discountRoutes); // ✅ Хямдрал routes
+app.use('/api/discounts', discountRoutes);
 app.use('/api/ratings', ratingRoutes);
+
 // ==================== ERROR HANDLING ====================
 // 404 Handler
 app.use((req, res) => {
-  console.log('❌ 404 - Route олдсонгүй:', req.method, req.path);
   res.status(404).json({
     success: false,
     message: 'Route олдсонгүй'
   });
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('❌ Алдаа:', err);
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Серверийн алдаа',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+// 🔥 Global error handler (шинэчилсэн)
+app.use(errorHandler);
 
 // ==================== SERVER ====================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('');
   console.log('==================================================');
-  console.log('🚀 Server: http://localhost:' + PORT);
+  console.log(`🚀 Server: http://localhost:${PORT}`);
+  console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('==================================================');
-  console.log('✅ Routes бүртгэгдсэн:');
-  console.log('   AUTH:');
-  console.log('   POST   /api/auth/login');
-  console.log('   POST   /api/auth/register');
-  console.log('   GET    /api/auth/me');
-  console.log('');
-  console.log('   COURSES:');
-  console.log('   GET    /api/courses');
-  console.log('   GET    /api/courses/my-courses');
-  console.log('   GET    /api/courses/:id');
-  console.log('   POST   /api/courses/:id/enroll');
-  console.log('');
-  console.log('   INSTRUCTORS:');
-  console.log('   GET    /api/instructors');
-  console.log('   GET    /api/instructors/:id');
-  console.log('');
-  console.log('   LESSONS:');
-  console.log('   POST   /api/lessons/:lessonId/complete');
-  console.log('   DELETE /api/lessons/:lessonId/complete');
-  console.log('   GET    /api/lessons/:courseId/progress');
-  console.log('');
-  console.log('   DISCOUNTS: ✅');
-  console.log('   GET    /api/discounts/active');
-  console.log('   POST   /api/discounts/courses/:courseId');
-  console.log('   GET    /api/discounts/courses/:courseId');
-  console.log('   PUT    /api/discounts/:discountId/deactivate');
-  console.log('   DELETE /api/discounts/:discountId');
-  console.log('');
-  console.log('   USERS:');
-  console.log('   PUT    /api/users/profile');
-  console.log('   PUT    /api/users/change-password');
-  console.log('   PUT    /api/users/instructor-profile');
-  console.log('');
-  console.log('   ADMIN:');
-  console.log('   GET    /api/admin/stats');
-  console.log('   GET    /api/admin/courses');
-  console.log('   POST   /api/admin/courses');
-  console.log('==================================================');
-  console.log('');
 });
 
+// 🔥 Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('✅ HTTP server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('👋 SIGINT signal received: closing HTTP server');
+  server.close(() => {
+    console.log('✅ HTTP server closed');
+    process.exit(0);
+  });
+});
+
+// 🔥 Unhandled rejection handler
 process.on('unhandledRejection', (err) => {
-  console.error('❌ Unhandled Rejection:', err.message);
-  process.exit(1);
+  console.error('❌ UNHANDLED REJECTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  
+  // Production-д server-ийг унагахгүй, зөвхөн log хийнэ
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️  Server үргэлжлүүлэн ажиллаж байна');
+  } else {
+    server.close(() => {
+      process.exit(1);
+    });
+  }
+});
+
+// 🔥 Uncaught exception handler
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT EXCEPTION! 💥');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  
+  // Production-д server-ийг унагахгүй
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️  Server үргэлжлүүлэн ажиллаж байна');
+  } else {
+    process.exit(1);
+  }
 });
 
 module.exports = app;

@@ -386,8 +386,14 @@ exports.updateUserRole = async (req, res) => {
 
 // adminController.js - createCourse функц засварлах
 
+// adminController.js - createCourse функц
+// 🔥 DEBUG хувилбар
+
 exports.createCourse = async (req, res) => {
   try {
+    // 🔥 REQUEST BODY шалгах
+    console.log('📦 Request Body:', JSON.stringify(req.body, null, 2));
+    
     const {
       title,
       description,
@@ -397,14 +403,28 @@ exports.createCourse = async (req, res) => {
       is_free,
       duration,
       thumbnail,
-      preview_video_url  // ✅ Шинэ талбар
+      preview_video_url
     } = req.body;
 
-    // Validation
-    if (!title || !description || !thumbnail) {
+    // 🔥 MINIMAL validation - зөвхөн үнэхээр шаардлагатай
+    if (!title) {
       return res.status(400).json({
         success: false,
-        message: 'Нэр, тайлбар, зургийн URL шаардлагатай'
+        message: 'Хичээлийн нэр шаардлагатай'
+      });
+    }
+
+    if (!description) {
+      return res.status(400).json({
+        success: false,
+        message: 'Тайлбар шаардлагатай'
+      });
+    }
+
+    if (!thumbnail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Зургийн URL шаардлагатай'
       });
     }
 
@@ -413,7 +433,10 @@ exports.createCourse = async (req, res) => {
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-');
 
-    // ✅ level устгасан, preview_video_url нэмсэн, category_id optional
+    console.log('✅ Validation амжилттай');
+    console.log('📝 Slug:', slug + '-' + Date.now());
+
+    // Database-д хадгалах
     const [result] = await db.query(`
       INSERT INTO courses 
       (title, slug, description, full_description, category_id, instructor_id, 
@@ -424,14 +447,16 @@ exports.createCourse = async (req, res) => {
       slug + '-' + Date.now(),
       description,
       full_description || description,
-      category_id || null,  // ✅ Хоосон байж болно
+      category_id || null,
       req.user.id,
       price || 0,
       is_free || false,
       duration || 0,
       thumbnail,
-      preview_video_url || null,  // ✅ Үнэгүй бичлэг
+      preview_video_url || null
     ]);
+
+    console.log('✅ Database-д амжилттай хадгалагдлаа, ID:', result.insertId);
 
     // Admin log
     await db.query(
@@ -449,10 +474,11 @@ exports.createCourse = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('CreateCourse Алдаа:', error);
+    console.error('❌ CreateCourse Алдаа:', error);
+    console.error('❌ Error details:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Серверийн алдаа гарлаа'
+      message: 'Серверийн алдаа гарлаа: ' + error.message
     });
   }
 };
