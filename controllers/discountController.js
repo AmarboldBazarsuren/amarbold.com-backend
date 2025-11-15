@@ -8,11 +8,11 @@ const db = require('../config/db');
 exports.createCourseDiscount = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { discount_percent, start_date, end_date } = req.body;
+    const { discount_percent, end_date } = req.body;  // ✅ start_date устгасан
     const userId = req.user.id;
 
     // Validation
-    if (!discount_percent || !start_date || !end_date) {
+    if (!discount_percent || !end_date) {
       return res.status(400).json({
         success: false,
         message: 'Бүх талбарыг бөглөнө үү'
@@ -50,21 +50,13 @@ exports.createCourseDiscount = async (req, res) => {
     }
 
     // Огноо шалгах
-    const startDate = new Date(start_date);
     const endDate = new Date(end_date);
     const now = new Date();
-
-    if (endDate <= startDate) {
-      return res.status(400).json({
-        success: false,
-        message: 'Дуусах огноо эхлэх огнооноос хойш байх ёстой'
-      });
-    }
 
     if (endDate <= now) {
       return res.status(400).json({
         success: false,
-        message: 'Дуусах огноо өнгөрсөн байна'
+        message: 'Дуусах огноо ирээдүйд байх ёстой'
       });
     }
 
@@ -83,12 +75,12 @@ exports.createCourseDiscount = async (req, res) => {
       });
     }
 
-    // Хямдрал үүсгэх
+    // ✅ start_date = одоо, end_date = хэрэглэгчийн сонгосон огноо
     const [result] = await db.query(`
       INSERT INTO course_discounts 
       (course_id, discount_percent, start_date, end_date, created_by, is_active)
-      VALUES (?, ?, ?, ?, ?, 1)
-    `, [courseId, discount_percent, startDate, endDate, userId]);
+      VALUES (?, ?, NOW(), ?, ?, 1)
+    `, [courseId, discount_percent, endDate, userId]);
 
     const discountPrice = course.price * (1 - discount_percent / 100);
 
@@ -102,7 +94,7 @@ exports.createCourseDiscount = async (req, res) => {
         originalPrice: course.price,
         discountPercent: discount_percent,
         discountPrice: Math.round(discountPrice),
-        startDate,
+        startDate: now,  // ✅ Одоо
         endDate
       }
     });

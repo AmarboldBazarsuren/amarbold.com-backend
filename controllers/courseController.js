@@ -9,40 +9,39 @@ exports.getAllCourses = async (req, res) => {
   try {
     const { category, search, status } = req.query;
     
-    // ✅ status шүүлтийг зөв ажиллуулах
-    let statusCondition = 'published'; // Default
+    let statusCondition = 'published';
     
     if (status === 'all') {
-      statusCondition = null; // Бүх статусыг авна
+      statusCondition = null;
     } else if (status) {
       statusCondition = status;
     }
-   // getAllCourses функцийн query хэсгийг солих
-let query = `
-  SELECT 
-    c.*,
-    cat.name as category_name,
-    cat.slug as category_slug,
-    u.name as instructor_name,
-    u.id as instructor_id,
-    (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students,
-    cd.discount_percent,
-    cd.end_date as discount_end_date,
-    CASE 
-      WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
-      ELSE NULL
-    END as discount_price
-  FROM courses c
-  LEFT JOIN categories cat ON c.category_id = cat.id
-  LEFT JOIN users u ON c.instructor_id = u.id
-  LEFT JOIN course_discounts cd ON c.id = cd.course_id 
-    AND cd.is_active = 1 
-    AND NOW() BETWEEN cd.start_date AND cd.end_date
-  WHERE 1=1
-`;
+
+    let query = `
+      SELECT 
+        c.*,
+        cat.name as category_name,
+        cat.slug as category_slug,
+        u.name as instructor_name,
+        u.id as instructor_id,
+        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students,
+        cd.discount_percent,
+        cd.end_date as discount_end_date,
+        CASE 
+          WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
+          ELSE NULL
+        END as discount_price
+      FROM courses c
+      LEFT JOIN categories cat ON c.category_id = cat.id
+      LEFT JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN course_discounts cd ON c.id = cd.course_id 
+        AND cd.is_active = 1 
+        AND NOW() BETWEEN cd.start_date AND cd.end_date
+      WHERE 1=1
+    `;
+    
     const params = [];
 
-    // ✅ Status шүүлт
     if (statusCondition) {
       query += ' AND c.status = ?';
       params.push(statusCondition);
@@ -78,7 +77,10 @@ let query = `
       level: course.level,
       rating: parseFloat(course.rating),
       students: course.total_students,
-      status: course.status, // ✅ Статусыг буцаана
+      status: course.status,
+      discount_percent: course.discount_percent,           // ✅ Энийг нэмнэ
+      discount_price: course.discount_price,               // ✅ Энийг нэмнэ
+      discount_end_date: course.discount_end_date,         // ✅ Энийг нэмнэ
       instructor: {
         id: course.instructor_id,
         name: course.instructor_name
@@ -106,19 +108,27 @@ exports.getCourseById = async (req, res) => {
     const courseId = req.params.id;
 
     // Хичээлийн үндсэн мэдээлэл
-    const [courses] = await db.query(`
-      SELECT 
-        c.*,
-        cat.name as category_name,
-        u.name as instructor_name,
-        u.id as instructor_id,
-        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
-      FROM courses c
-      LEFT JOIN categories cat ON c.category_id = cat.id
-      LEFT JOIN users u ON c.instructor_id = u.id
-      WHERE c.id = ?
-    `, [courseId]);
-
+  const [courses] = await db.query(`
+  SELECT 
+    c.*,
+    cat.name as category_name,
+    u.name as instructor_name,
+    u.id as instructor_id,
+    cd.discount_percent,
+    cd.end_date as discount_end_date,
+    CASE 
+      WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
+      ELSE NULL
+    END as discount_price,
+    (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
+  FROM courses c
+  LEFT JOIN categories cat ON c.category_id = cat.id
+  LEFT JOIN users u ON c.instructor_id = u.id
+  LEFT JOIN course_discounts cd ON c.id = cd.course_id 
+    AND cd.is_active = 1 
+    AND NOW() BETWEEN cd.start_date AND cd.end_date
+  WHERE c.id = ?
+`, [courseId]);
     if (courses.length === 0) {
       return res.status(404).json({
         success: false,
