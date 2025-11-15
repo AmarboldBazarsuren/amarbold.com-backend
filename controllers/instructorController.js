@@ -72,15 +72,24 @@ exports.getInstructorDetail = async (req, res) => {
       });
     }
 
-    // Багшийн хичээлүүд
+    // Багшийн хичээлүүд + ХЯМДРАЛ
     const [courses] = await db.query(`
       SELECT 
         c.*,
         cat.name as category_name,
         cat.slug as category_slug,
+        cd.discount_percent,
+        cd.end_date as discount_end_date,
+        CASE 
+          WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
+          ELSE NULL
+        END as discount_price,
         (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
       FROM courses c
       LEFT JOIN categories cat ON c.category_id = cat.id
+      LEFT JOIN course_discounts cd ON c.id = cd.course_id 
+        AND cd.is_active = 1 
+        AND NOW() BETWEEN cd.start_date AND cd.end_date
       WHERE c.instructor_id = ? AND c.status = 'published'
       ORDER BY c.created_at DESC
     `, [instructorId]);
@@ -92,6 +101,9 @@ exports.getInstructorDetail = async (req, res) => {
       thumbnail: course.thumbnail,
       category: course.category_slug,
       price: parseFloat(course.price),
+      discount_percent: course.discount_percent,
+      discount_price: course.discount_price,
+      discount_end_date: course.discount_end_date,
       is_free: course.is_free === 1,
       duration: course.duration,
       level: course.level,

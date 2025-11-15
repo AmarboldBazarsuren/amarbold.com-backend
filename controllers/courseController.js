@@ -3,8 +3,6 @@ const db = require('../config/db');
 // @desc    Бүх хичээлүүдийг авах
 // @route   GET /api/courses
 // @access  Private
-// ✅ getAllCourses функцийг засах (мөр 6 орчим)
-
 exports.getAllCourses = async (req, res) => {
   try {
     const { category, search, status } = req.query;
@@ -61,7 +59,6 @@ exports.getAllCourses = async (req, res) => {
 
     const [courses] = await db.query(query, params);
 
-    // Хичээл бүрийн мэдээллийг format хийх
     const formattedCourses = courses.map(course => ({
       id: course.id,
       title: course.title,
@@ -78,9 +75,9 @@ exports.getAllCourses = async (req, res) => {
       rating: parseFloat(course.rating),
       students: course.total_students,
       status: course.status,
-      discount_percent: course.discount_percent,           // ✅ Энийг нэмнэ
-      discount_price: course.discount_price,               // ✅ Энийг нэмнэ
-      discount_end_date: course.discount_end_date,         // ✅ Энийг нэмнэ
+      discount_percent: course.discount_percent,
+      discount_price: course.discount_price,
+      discount_end_date: course.discount_end_date,
       instructor: {
         id: course.instructor_id,
         name: course.instructor_name
@@ -100,6 +97,7 @@ exports.getAllCourses = async (req, res) => {
     });
   }
 };
+
 // @desc    Хичээлийн дэлгэрэнгүй мэдээлэл авах
 // @route   GET /api/courses/:id
 // @access  Private
@@ -107,28 +105,28 @@ exports.getCourseById = async (req, res) => {
   try {
     const courseId = req.params.id;
 
-    // Хичээлийн үндсэн мэдээлэл
-  const [courses] = await db.query(`
-  SELECT 
-    c.*,
-    cat.name as category_name,
-    u.name as instructor_name,
-    u.id as instructor_id,
-    cd.discount_percent,
-    cd.end_date as discount_end_date,
-    CASE 
-      WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
-      ELSE NULL
-    END as discount_price,
-    (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
-  FROM courses c
-  LEFT JOIN categories cat ON c.category_id = cat.id
-  LEFT JOIN users u ON c.instructor_id = u.id
-  LEFT JOIN course_discounts cd ON c.id = cd.course_id 
-    AND cd.is_active = 1 
-    AND NOW() BETWEEN cd.start_date AND cd.end_date
-  WHERE c.id = ?
-`, [courseId]);
+    const [courses] = await db.query(`
+      SELECT 
+        c.*,
+        cat.name as category_name,
+        u.name as instructor_name,
+        u.id as instructor_id,
+        cd.discount_percent,
+        cd.end_date as discount_end_date,
+        CASE 
+          WHEN cd.id IS NOT NULL THEN ROUND(c.price * (1 - cd.discount_percent / 100))
+          ELSE NULL
+        END as discount_price,
+        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as total_students
+      FROM courses c
+      LEFT JOIN categories cat ON c.category_id = cat.id
+      LEFT JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN course_discounts cd ON c.id = cd.course_id 
+        AND cd.is_active = 1 
+        AND NOW() BETWEEN cd.start_date AND cd.end_date
+      WHERE c.id = ?
+    `, [courseId]);
+
     if (courses.length === 0) {
       return res.status(404).json({
         success: false,
@@ -138,17 +136,15 @@ exports.getCourseById = async (req, res) => {
 
     const course = courses[0];
 
-    // Хичээлийн бүлгүүд болон хичээлүүд
     const [sections] = await db.query(`
       SELECT * FROM course_sections 
       WHERE course_id = ? 
       ORDER BY order_number ASC
     `, [courseId]);
 
-    // Бүлэг бүрийн хичээлүүд
     for (let section of sections) {
       const [lessons] = await db.query(`
-        SELECT id, title, description, duration, order_number, is_free_preview
+        SELECT id, title, description, duration, order_number, is_free_preview, video_url
         FROM lessons 
         WHERE section_id = ? 
         ORDER BY order_number ASC
@@ -156,7 +152,6 @@ exports.getCourseById = async (req, res) => {
       section.lessons = lessons;
     }
 
-    // Хэрэглэгч бүртгүүлсэн эсэхийг шалгах
     const [enrollments] = await db.query(
       'SELECT id FROM enrollments WHERE user_id = ? AND course_id = ?',
       [req.user.id, courseId]
@@ -174,6 +169,9 @@ exports.getCourseById = async (req, res) => {
         thumbnail: course.thumbnail,
         category: course.category_name,
         price: parseFloat(course.price),
+        discount_percent: course.discount_percent,
+        discount_price: course.discount_price,
+        discount_end_date: course.discount_end_date,
         is_free: course.is_free === 1,
         duration: course.duration,
         level: course.level,
@@ -204,7 +202,6 @@ exports.enrollCourse = async (req, res) => {
     const courseId = req.params.id;
     const userId = req.user.id;
 
-    // Хичээл байгаа эсэхийг шалгах
     const [courses] = await db.query(
       'SELECT id, price, is_free FROM courses WHERE id = ? AND status = ?',
       [courseId, 'published']
@@ -219,7 +216,6 @@ exports.enrollCourse = async (req, res) => {
 
     const course = courses[0];
 
-    // Аль хэдийн бүртгүүлсэн эсэхийг шалгах
     const [existingEnrollment] = await db.query(
       'SELECT id FROM enrollments WHERE user_id = ? AND course_id = ?',
       [userId, courseId]
@@ -232,7 +228,6 @@ exports.enrollCourse = async (req, res) => {
       });
     }
 
-    // Бүртгэл үүсгэх
     const paymentStatus = course.is_free ? 'free' : 'paid';
     
     await db.query(
@@ -240,7 +235,6 @@ exports.enrollCourse = async (req, res) => {
       [userId, courseId, paymentStatus, course.price]
     );
 
-    // Хичээлийн суралцагчийн тоог нэмэх
     await db.query(
       'UPDATE courses SET total_students = total_students + 1 WHERE id = ?',
       [courseId]
@@ -271,13 +265,17 @@ exports.getMyCourses = async (req, res) => {
         c.*,
         e.enrolled_at,
         e.expires_at,
+        e.payment_amount,
         u.name as instructor_name,
+        cd.discount_percent as enrolled_discount_percent,
         (SELECT COUNT(*) FROM lesson_progress lp 
          WHERE lp.user_id = ? AND lp.course_id = c.id AND lp.is_completed = 1) as completed_lessons,
         (SELECT COUNT(*) FROM lessons WHERE course_id = c.id) as total_lessons
       FROM enrollments e
       JOIN courses c ON e.course_id = c.id
       LEFT JOIN users u ON c.instructor_id = u.id
+      LEFT JOIN course_discounts cd ON e.course_id = cd.course_id 
+        AND e.enrolled_at BETWEEN cd.start_date AND cd.end_date
       WHERE e.user_id = ?
       ORDER BY e.enrolled_at DESC
     `, [userId, userId]);
@@ -297,6 +295,7 @@ exports.getMyCourses = async (req, res) => {
         totalLessons: course.total_lessons,
         enrolledAt: course.enrolled_at,
         expiresAt: course.expires_at,
+        discount_percent: course.enrolled_discount_percent,
         instructor: {
           name: course.instructor_name
         }
@@ -316,9 +315,8 @@ exports.getMyCourses = async (req, res) => {
     });
   }
 };
-// ❌ Энэ функц байхгүй - Шинээр нэмнэ
 
-// @desc    Админ самбарын хичээлүүд авах (Test Admin өөрийнхөө, Super Admin бүгдийг)
+// @desc    Админ самбарын хичээлүүд авах
 // @route   GET /api/admin/courses
 // @access  Private/Admin
 exports.getAdminCourses = async (req, res) => {
@@ -342,18 +340,15 @@ exports.getAdminCourses = async (req, res) => {
 
     const params = [];
 
-    // ✅ Test Admin зөвхөн өөрийнхөө хичээлүүдийг харна
     if (userRole === 'test_admin') {
       query += ' AND c.instructor_id = ?';
       params.push(userId);
     }
-    // Super Admin бүх хичээлийг харна
 
     query += ' ORDER BY c.created_at DESC';
 
     const [courses] = await db.query(query, params);
 
-    // Хичээл бүрийн мэдээллийг format хийх
     const formattedCourses = courses.map(course => ({
       id: course.id,
       title: course.title,
