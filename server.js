@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 const { errorHandler } = require('./middleware/errorHandler');
-
+const uploadRoutes = require('./routes/uploadRoutes');
 dotenv.config();
 require('./config/db');
 
@@ -86,7 +86,7 @@ app.use('/api/discounts', discountRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/public', publicRoutes);
-
+app.use('/api/upload', uploadRoutes);
 // ==================== ERROR HANDLING ====================
 // 404 Handler
 app.use((req, res) => {
