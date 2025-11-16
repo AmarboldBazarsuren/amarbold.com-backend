@@ -1,70 +1,64 @@
-// middleware/upload.js
+// middleware/upload.js - CLOUDINARY ХУВИЛБАР
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 
-// ✅ Uploads folder үүсгэх
-const uploadDir = 'uploads';
-const coursesDir = path.join(uploadDir, 'courses');
-const profilesDir = path.join(uploadDir, 'profiles');
-const bannersDir = path.join(uploadDir, 'banners');
+// ✅ Cloudinary тохируулах
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
-[uploadDir, coursesDir, profilesDir, bannersDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+// ✅ Course thumbnail storage
+const courseThumbnailStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'eduvia/courses',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 800, height: 600, crop: 'limit' }]
   }
 });
 
-// ✅ Storage engine
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // fieldname дээр үндэслэн folder сонгох
-    if (file.fieldname === 'thumbnail') {
-      cb(null, coursesDir);
-    } else if (file.fieldname === 'profile_image') {
-      cb(null, profilesDir);
-    } else if (file.fieldname === 'profile_banner') {
-      cb(null, bannersDir);
-    } else {
-      cb(null, uploadDir);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+// ✅ Profile image storage
+const profileImageStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'eduvia/profiles',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }]
   }
 });
 
-// ✅ File filter - зөвхөн зураг
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('Зөвхөн зураг файл (.jpg, .png, .gif, .webp) upload хийх боломжтой'));
+// ✅ Profile banner storage
+const profileBannerStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'eduvia/banners',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [{ width: 1200, height: 400, crop: 'fill' }]
   }
-};
+});
 
 // ✅ Multer config
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
-  },
-  fileFilter: fileFilter
+const uploadCourseThumbnail = multer({
+  storage: courseThumbnailStorage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
-// ✅ Exports
+const uploadProfileImage = multer({
+  storage: profileImageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+const uploadProfileBanner = multer({
+  storage: profileBannerStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
 module.exports = {
-  upload,
-  // Нэг зураг
-  uploadSingle: (fieldName) => upload.single(fieldName),
-  // Олон зураг
-  uploadMultiple: (fieldName, maxCount) => upload.array(fieldName, maxCount),
-  // Өөр өөр field-үүд
-  uploadFields: (fields) => upload.fields(fields)
+  uploadCourseThumbnail,
+  uploadProfileImage,
+  uploadProfileBanner,
+  cloudinary // Export for potential deletion
 };

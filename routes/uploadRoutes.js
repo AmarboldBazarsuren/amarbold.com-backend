@@ -1,17 +1,20 @@
-// routes/uploadRoutes.js
+// routes/uploadRoutes.js - CLOUDINARY ХУВИЛБАР
 const express = require('express');
 const router = express.Router();
-const { uploadSingle } = require('../middleware/upload');
+const {
+  uploadCourseThumbnail,
+  uploadProfileImage,
+  uploadProfileBanner
+} = require('../middleware/upload');
 const { protect, authorize } = require('../middleware/auth');
 
-// ✅ Бүх upload хамгаалагдсан
 router.use(protect);
 
 // ==================== ХИЧЭЭЛИЙН ЗУРАГ ====================
 router.post(
   '/course-thumbnail',
   authorize('admin', 'test_admin'),
-  uploadSingle('thumbnail'),
+  uploadCourseThumbnail.single('thumbnail'),
   (req, res) => {
     try {
       if (!req.file) {
@@ -21,16 +24,17 @@ router.post(
         });
       }
 
-      // ✅ FRONTEND-ээс хандах боломжтой URL
-      const fileUrl = `http://localhost:5000/uploads/courses/${req.file.filename}`;
+      // ✅ Cloudinary-с ирсэн URL
+      const fileUrl = req.file.path; // Cloudinary URL
 
       res.status(200).json({
         success: true,
         message: 'Зураг амжилттай upload хийгдлээ',
         data: {
           filename: req.file.filename,
-          url: fileUrl, // ✅ Энэ URL-ийг frontend ашиглана
-          size: req.file.size
+          url: fileUrl, // ✅ https://res.cloudinary.com/...
+          size: req.file.size,
+          cloudinaryId: req.file.filename // Deletion-д хэрэглэнэ
         }
       });
     } catch (error) {
@@ -46,7 +50,7 @@ router.post(
 // ==================== ПРОФАЙЛ ЗУРАГ ====================
 router.post(
   '/profile-image',
-  uploadSingle('profile_image'),
+  uploadProfileImage.single('profile_image'),
   (req, res) => {
     try {
       if (!req.file) {
@@ -56,7 +60,7 @@ router.post(
         });
       }
 
-      const fileUrl = `http://localhost:5000/uploads/profiles/${req.file.filename}`;
+      const fileUrl = req.file.path;
 
       res.status(200).json({
         success: true,
@@ -80,7 +84,7 @@ router.post(
 // ==================== BANNER ЗУРАГ ====================
 router.post(
   '/profile-banner',
-  uploadSingle('profile_banner'),
+  uploadProfileBanner.single('profile_banner'),
   (req, res) => {
     try {
       if (!req.file) {
@@ -90,7 +94,7 @@ router.post(
         });
       }
 
-      const fileUrl = `http://localhost:5000/uploads/banners/${req.file.filename}`;
+      const fileUrl = req.file.path;
 
       res.status(200).json({
         success: true,
