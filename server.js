@@ -21,6 +21,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'https://amarbold-com-frontend.vercel.app',
     'https://eduvia-mn.vercel.app'
   ],
   credentials: true
