@@ -1,8 +1,28 @@
+
+
+# Dependencies
 node_modules/
+
+# Environment
 .env
-.env.production
 .env.local
-uploads/
+.env.production
+
+# Logs
 logs/
 *.log
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+
+# Uploads (Cloudinary ашиглаж байгаа учир хэрэггүй)
+uploads/
