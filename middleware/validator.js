@@ -37,7 +37,7 @@ exports.validateLogin = [
   handleValidationErrors
 ];
 
-// 🔥 ШИНЭЧИЛСЭН - Хатуу валидаци
+// 🔥 ШИНЭЧИЛСЭН - Хатуу валидаци + thumbnail зөөлрүүлсэн
 exports.validateCourse = [
   body('title')
     .trim()
@@ -70,21 +70,39 @@ exports.validateCourse = [
   body('price')
     .isFloat({ min: 5000 })
     .withMessage('Үнэ дор хаяж 5000₮-с дээш байх ёстой'),
+  
+  // ✅ THUMBNAIL - http://localhost зөвшөөрөх
   body('thumbnail')
     .trim()
     .notEmpty()
     .withMessage('Зургийн URL заавал оруулах ёстой')
-    .isURL()
-    .withMessage('Зургийн URL буруу байна'),
+    .custom((value) => {
+      // ✅ http эсвэл https-ээр эхэлсэн URL шалгах
+      const urlRegex = /^(https?:\/\/).+/;
+      if (!urlRegex.test(value)) {
+        throw new Error('Зургийн URL буруу байна');
+      }
+      return true;
+    }),
+  
+  // ✅ PREVIEW VIDEO - YouTube URL шалгах
   body('preview_video_url')
     .trim()
     .notEmpty()
     .withMessage('Танилцуулга видео URL заавал оруулах ёстой')
-    .isURL()
-    .withMessage('Видео URL буруу байна'),
+    .custom((value) => {
+      // ✅ YouTube URL шалгах
+      const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
+      if (!youtubeRegex.test(value)) {
+        throw new Error('Зөвхөн YouTube видео линк оруулах боломжтой');
+      }
+      return true;
+    }),
+  
   body('category_id')
     .optional()
     .isInt()
     .withMessage('Ангилал тоо байх ёстой'),
+  
   handleValidationErrors
 ];
