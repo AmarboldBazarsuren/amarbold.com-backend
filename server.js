@@ -5,7 +5,7 @@ const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
-const { errorHandler } = require('./middleware/errorHandler'); // 🔥 Шинэ
+const { errorHandler } = require('./middleware/errorHandler');
 
 dotenv.config();
 require('./config/db');
@@ -16,7 +16,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ==================== MIDDLEWARE ====================
-app.use(express.json({ limit: '10mb' })); // 🔥 Request size limit
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(cors({
@@ -29,7 +29,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Security
 app.use(helmet({ 
   contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false // 🔥 YouTube embed-д зориулж
+  crossOriginEmbedderPolicy: false
 }));
 app.use(compression());
 app.use('/api/', apiLimiter);
@@ -50,6 +50,7 @@ const instructorRoutes = require('./routes/instructorRoutes');
 const lessonRoutes = require('./routes/lessonRoutes');
 const discountRoutes = require('./routes/discountRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 
@@ -83,6 +84,7 @@ app.use('/api/instructors', instructorRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/ratings', ratingRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/public', publicRoutes);
 
 // ==================== ERROR HANDLING ====================
@@ -94,7 +96,7 @@ app.use((req, res) => {
   });
 });
 
-// 🔥 Global error handler (шинэчилсэн)
+// 🔥 Global error handler
 app.use(errorHandler);
 
 // ==================== SERVER ====================
@@ -130,7 +132,6 @@ process.on('unhandledRejection', (err) => {
   console.error('❌ UNHANDLED REJECTION! 💥 Shutting down...');
   console.error(err.name, err.message);
   
-  // Production-д server-ийг унагахгүй, зөвхөн log хийнэ
   if (process.env.NODE_ENV === 'production') {
     console.error('⚠️  Server үргэлжлүүлэн ажиллаж байна');
   } else {
@@ -146,7 +147,6 @@ process.on('uncaughtException', (err) => {
   console.error(err.name, err.message);
   console.error(err.stack);
   
-  // Production-д server-ийг унагахгүй
   if (process.env.NODE_ENV === 'production') {
     console.error('⚠️  Server үргэлжлүүлэн ажиллаж байна');
   } else {
