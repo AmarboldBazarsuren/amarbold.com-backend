@@ -18,7 +18,8 @@ const {
   updateSection,      // ✅ Шинэ
   deleteSection,      // ✅ Шинэ
   updateLesson,       // ✅ Шинэ
-  deleteLesson        // ✅ Шинэ
+  deleteLesson,        // ✅ Шинэ
+  deleteUser
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 const { validateCourse } = require('../middleware/validator');
@@ -42,6 +43,7 @@ router.get('/courses', getAdminCourses);
 router.post('/courses', validateCourse, createCourse);
 router.put('/courses/:id',validateCourse, updateCourse);
 router.delete('/courses/:id', authorize('admin'), deleteCourse);
+router.delete('/users/:id', authorize('admin'), deleteUser);
 
 // Section
 router.post('/courses/:id/sections', addCourseSection);

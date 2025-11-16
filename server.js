@@ -51,6 +51,7 @@ const lessonRoutes = require('./routes/lessonRoutes');
 const discountRoutes = require('./routes/discountRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const { router: userRoutes, publicRouter } = require('./routes/userRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -82,6 +83,7 @@ app.use('/api/instructors', instructorRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/ratings', ratingRoutes);
+app.use('/api/public', publicRoutes);
 
 // ==================== ERROR HANDLING ====================
 // 404 Handler

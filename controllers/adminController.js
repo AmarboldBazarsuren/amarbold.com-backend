@@ -1240,3 +1240,91 @@ exports.deleteLesson = async (req, res) => {
     });
   }
 };
+// controllers/adminController.js
+
+// ✅ Хэрэглэгч устгах
+exports.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Зөвхөн Super Admin устгаж чадна
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Зөвхөн Super Admin хэрэглэгч устгах эрхтэй'
+      });
+    }
+
+    // Өөрийгөө устгахыг хориглох
+    if (userId == req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Та өөрийгөө устгаж болохгүй'
+      });
+    }
+
+    // Хэрэглэгч байгаа эсэхийг шалгах
+    const [users] = await db.query(
+      'SELECT name, role FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Хэрэглэгч олдсонгүй'
+      });
+    }
+
+    // Super Admin-ийг устгахыг хориглох
+    if (users[0].role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Super Admin-ийг устгаж болохгүй'
+      });
+    }
+
+    // Transaction ашиглан бүх холбоотой өгөгдлийг устгах
+    await db.query('START TRANSACTION');
+
+    try {
+      // 1. Lesson progress устгах
+      await db.query('DELETE FROM lesson_progress WHERE user_id = ?', [userId]);
+
+      // 2. Enrollments устгах
+      await db.query('DELETE FROM enrollments WHERE user_id = ?', [userId]);
+
+      // 3. Course ratings устгах
+      await db.query('DELETE FROM course_ratings WHERE user_id = ?', [userId]);
+
+      // 4. Хэрэглэгчийг устгах
+      await db.query('DELETE FROM users WHERE id = ?', [userId]);
+
+      // Commit transaction
+      await db.query('COMMIT');
+
+      // Admin log
+      await db.query(
+        'INSERT INTO admin_logs (admin_id, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)',
+        [req.user.id, 'delete_user', 'user', userId, `Хэрэглэгч устгав: ${users[0].name}`]
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Хэрэглэгч амжилттай устгагдлаа'
+      });
+    } catch (error) {
+      // Rollback on error
+      await db.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('DeleteUser Алдаа:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Серверийн алдаа гарлаа'
+    });
+  }
+};
+
+// ✅ getUserById функц аль хэдийн байгаа, харин enrollments буцаана
