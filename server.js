@@ -26,8 +26,12 @@ app.use(cors({
       'https://eduvia-mn.vercel.app'
     ];
     
-    // Postman эсвэл server-to-server хүсэлт (origin байхгүй)
     if (!origin) return callback(null, true);
+    
+    // ✅ ШИНЭ - Vercel preview URL зөвшөөрөх
+    if (origin && origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);

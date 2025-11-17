@@ -81,15 +81,12 @@ exports.getAllCourses = async (req, res) => {
       LEFT JOIN course_discounts cd ON c.id = cd.course_id 
         AND cd.is_active = 1 
         AND NOW() BETWEEN cd.start_date AND cd.end_date
-      WHERE 1=1
+      WHERE (c.status = 'published' OR c.status IS NULL)
     `;
     
     const params = [];
 
-    if (statusCondition) {
-      query += ' AND c.status = ?';
-      params.push(statusCondition);
-    }
+    
 
     if (category) {
       query += ' AND cat.slug = ?';

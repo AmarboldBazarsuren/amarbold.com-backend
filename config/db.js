@@ -12,8 +12,9 @@ const pool = mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
+  timezone: 'Z',
+  dateStrings: true,
   
-  // ✅ SSL дэмжлэг (Aiven хэрэгтэй)
   ssl: process.env.DB_SSL === 'true' ? {
     rejectUnauthorized: false
   } : false

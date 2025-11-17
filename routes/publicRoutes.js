@@ -1,5 +1,3 @@
-// routes/publicRoutes.js
-
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
@@ -28,7 +26,7 @@ router.get('/courses', async (req, res) => {
       LEFT JOIN course_discounts cd ON c.id = cd.course_id 
         AND cd.is_active = 1 
         AND NOW() BETWEEN cd.start_date AND cd.end_date
-      WHERE c.status = 'published'
+      WHERE (c.status = 'published' OR c.status IS NULL)
       ORDER BY c.created_at DESC
       LIMIT 20
     `);
@@ -73,7 +71,7 @@ router.get('/courses', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const [totalCourses] = await db.query(
-      'SELECT COUNT(*) as count FROM courses WHERE status = "published"'
+      'SELECT COUNT(*) as count FROM courses WHERE (status = "published" OR status IS NULL)'
     );
 
     const [totalInstructors] = await db.query(
@@ -84,7 +82,7 @@ router.get('/stats', async (req, res) => {
       SELECT COUNT(DISTINCT instructor_id) as count 
       FROM courses 
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-      AND status = 'published'
+      AND (status = 'published' OR status IS NULL)
     `);
 
     res.status(200).json({
