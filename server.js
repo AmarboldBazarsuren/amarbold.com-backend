@@ -19,12 +19,26 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://amarbold-com-frontend.vercel.app',
-    'https://eduvia-mn.vercel.app'
-  ],
-  credentials: true
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://amarbold-com-frontend.vercel.app',
+      'https://eduvia-mn.vercel.app'
+    ];
+    
+    // Postman эсвэл server-to-server хүсэлт (origin байхгүй)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS алдаа:', origin);
+      callback(new Error('CORS policy-д хамаарахгүй байна'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
