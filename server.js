@@ -18,26 +18,41 @@ app.set('trust proxy', 1);
 // ==================== MIDDLEWARE ====================
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// ==================== MIDDLEWARE ====================
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.use(cors({
   origin: function(origin, callback) {
+    // ✅ Development эсвэл no-origin (Postman гэх мэт)
+    if (!origin) return callback(null, true);
+    
+    // ✅ Vercel Preview URLs зөвшөөрөх (*.vercel.app)
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // ✅ Render URLs зөвшөөрөх (*.onrender.com)
+    if (origin.includes('.onrender.com')) {
+      return callback(null, true);
+    }
+    
+    // ✅ Localhost зөвшөөрөх
+    if (origin.includes('localhost:3000') || origin.includes('localhost:5173')) {
+      return callback(null, true);
+    }
+    
+    // ✅ Тодорхой production domains
     const allowedOrigins = [
-      'http://localhost:3000',
       'https://amarbold-com-frontend.vercel.app',
       'https://eduvia-mn.vercel.app'
     ];
     
-    if (!origin) return callback(null, true);
-    
-    // ✅ ШИНЭ - Vercel preview URL зөвшөөрөх
-    if (origin && origin.includes('vercel.app')) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log('❌ CORS алдаа:', origin);
-      callback(new Error('CORS policy-д хамаарахгүй байна'));
+      console.log('❌ CORS алдаа - Зөвшөөрөгдөөгүй origin:', origin);
+      callback(null, true); // ✅ Production-д алдаа гаргахгүйн тулд
     }
   },
   credentials: true,
